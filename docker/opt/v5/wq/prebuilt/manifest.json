@@ -1,0 +1,16 @@
+{
+ "configs": [
+  "co256x128_c1x1",
+  "pp128x128_c1x1",
+  "pp128x160_c1x1",
+  "pp64x128_c2x1",
+  "pp64x160_c1x1",
+  "pp64x256_c2x1",
+  "ws128x160_c1x1"
+ ],
+ "table_sha256": "3cc482af2471cd61dc5324b65db50cc8db14e6cee21a2b0ae3ea4c2c06ca22d1",
+ "torch": "2.13.0+cu129",
+ "cutlass": "57e3cfb47a2d9e0d46eb6335c3dc411498efa198",
+ "so_sha256": "59cbf96280b243238b8373160560086ba1ffad95655ff6d19f5d4ac8eff05e05",
+ "built": "2026-10-21 03:15 UTC"
+}
