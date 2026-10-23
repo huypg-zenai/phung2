@@ -4,7 +4,7 @@ apply_fp8_linear (sglang/srt/layers/quantization/fp8_utils.py) calls the module-
 0.4.6.post1 cutlass sm90: for M > 128 always tile 128x128, cluster 2x1, pingpong FP8 fast-accum). At the coder's verify
 sizes the N=5120 GEMMs make 160 tiles on 132 SMs (2 waves). install() rebinds fp8_utils.fp8_scaled_mm to wq_mm, which
 for (N, K, M) in the table runs the SAME production kernel code (struct/caller/epilogue copied verbatim, same flags) with
-another tile/cluster/schedule from ONE prebuilt extension (apply_wq.py --build -> $SGL_WQ_DIR/kopt_wq_ext.so, default
+another tile/cluster/schedule from ONE extension built from source (apply_wq.py --build -> $SGL_WQ_DIR/kopt_wq_ext.so, default
 /opt/kopt_wq). FP8 fast-accum keeps the per-element K chain, the epilogue is per element -> bitwise-identical output
 (WAVEQ bench: 648/648 + sweep; negative control caught).
 

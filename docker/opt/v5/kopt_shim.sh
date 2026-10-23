@@ -4,7 +4,7 @@
 # IN PLACE into /opt/sglang-env at coder start, each FAIL CLOSED, each behind its own 0/1 switch (only "1" = on):
 #   item      switch        class  kit dir here            what it edits in <sglang>
 #   wq        SGL_WQ        A      wq/                     srt/layers/quantization/fp8_utils.py (append) + 2 copies;
-#                                                          prebuilt ext COPYed to /opt/kopt_wq (= $SGL_WQ_DIR)
+#                                                          ext built from source (apply_wq.py --build) in /opt/kopt_wq (= $SGL_WQ_DIR)
 #   fusedq    SGL_FUSEDQ    A      fusedq/                 srt/models/qwen3_5.py (append) + srt/layers/kopt_fusedq.py + 2 .cuh
 #   mrope_nb  SGL_MROPE_NB  A      mrope_nb/               srt/model_executor/forward_batch_info.py (1 line + import)
 #   topkbf    SGL_TOPKBF    A      topkbf_normcfg/topkbf/  srt/layers/logits_processor.py (2 hooks), dflash_utils.py
@@ -24,7 +24,7 @@
 # exactly one line '[v5-kopt] <item> REFUSED: <why> -> ...'. Every hook is dormant at switch 0 (checked by the tests).
 # Item rules: wq replaces gsw (same fp8_scaled_mm hook, README "do not combine"): its check runs with SGL_GSW=0 and, if
 #   it passes, SGL_GSW is exported 0 (the gsw hook stays in fp8_utils.py but installs nothing); if wq is refused, gsw
-#   stays as v4 left it. wq is refused with SGL_FP8PIN=1, or when the prebuilt ext at $SGL_WQ_DIR differs from wq/prebuilt.
+#   stays as v4 left it. wq is refused with SGL_FP8PIN=1, or when the built ext at $SGL_WQ_DIR differs from its kit copy wq/built.
 #   fusedq: SGL_FUSEDQ_NORM is forced to 0 (README: 1 ulp off -> never on). casc (class B, image default OFF): needs
 #   SGL_CASC_PRE_SPLITS=1 (README: required; anything else -> casc refused). topkbf: SGL_TOPKBF_MODEL defaults to the
 #   coder model id (arg after 'serve') for its --check hidden/vocab sizes.
@@ -56,7 +56,7 @@ script() { case $1 in wq) echo wq/apply_wq.py ;; fusedq) echo fusedq/apply_fused
   topkbf) echo topkbf_normcfg/topkbf/apply_topkbf.py ;; normcfg) echo topkbf_normcfg/normcfg/apply_normcfg.py ;;
   casc) echo casc/apply_casc.py ;; cf) echo cf/apply_cf.py ;; esac; }
 files() { case $1 in
-  wq) echo wq/apply_wq.py wq/kopt_wq.py wq/kopt_wq_table.json wq/prebuilt/kopt_wq_ext.so wq/prebuilt/manifest.json ;;
+  wq) echo wq/apply_wq.py wq/kopt_wq.py wq/kopt_wq_table.json wq/built/kopt_wq_ext.so wq/built/manifest.json ;;
   fusedq) echo fusedq/apply_fusedq.py fusedq/fusedq.py fusedq/silu_quant.cuh fusedq/gemma_quant.cuh ;;
   mrope_nb) echo mrope_nb/apply_mrope.py ;;
   topkbf) echo topkbf_normcfg/topkbf/apply_topkbf.py topkbf_normcfg/topkbf/kopt_topkbf.py ;;
@@ -110,7 +110,7 @@ rule_guard() {  # item -> prints a reason when an item rule forbids it
     wq)
       [ "${SGL_FP8PIN:-0}" = 1 ] && { echo "SGL_FP8PIN=1 (same fp8_scaled_mm hook; wq README: do not combine)"; return; }
       local f; for f in kopt_wq_ext.so manifest.json; do
-        cmp -s "$WQ_PREFIX/$f" "$D/wq/prebuilt/$f" || { echo "prebuilt $WQ_PREFIX/$f missing or != $D/wq/prebuilt/$f (Dockerfile COPY)"; return; }
+        cmp -s "$WQ_PREFIX/$f" "$D/wq/built/$f" || { echo "built ext $WQ_PREFIX/$f missing or != $D/wq/built/$f (both written at image build)"; return; }
       done ;;
     casc)
       [ "${SGL_CASC_PRE_SPLITS:-1}" = 1 ] || echo "SGL_CASC_PRE_SPLITS='${SGL_CASC_PRE_SPLITS}' (casc README: 1 is required)" ;;

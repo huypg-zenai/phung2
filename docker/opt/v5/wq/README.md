@@ -10,11 +10,17 @@ Coder only. ms/step served on 1x H200 (accept 5.50-5.55 in every arm, so drafts 
 Noise floor (off vs off-repeat) 0.3 ms. The biggest gain is in the mid range (bs 33-48: GEMM saves 8-15 ms per step),
 which is where the batch sits whenever fewer than 64 are running (round tail, judge-bound phases).
 
-## Install (image build)
-Option A, use the prebuilt extension (same env only: torch 2.13.0+cu129, sgl_kernel 0.4.6.post1, sm90 H100/H200):
-  mkdir -p /opt/kopt_wq && cp prebuilt/kopt_wq_ext.so prebuilt/manifest.json /opt/kopt_wq/
-  (so sha256 59cbf962..., table sha256 3cc482af... = kopt_wq_table.json here; kopt_wq.py refuses a mismatch -> fallback)
-Option B, build it: python apply_wq.py --build --jobs 16 [--cutlass DIR]   (needs nvcc + ninja at build time only)
+## Install (image build) - built FROM SOURCE, no kopt-wq binary in the repo
+docker/Dockerfile stage `kopt_wq_build` runs `bash build_wq.sh /opt/kopt_wq` (this dir): a python3.11 venv with torch
+2.13.0+cu129 (= the coder env) + ninja, then `python apply_wq.py --build --prefix /opt/kopt_wq` = ONE extension with the
+table's 7 configs, from kopt_wq_gemm.cuh + sgl_csrc/ (sgl-kernel 0.4.6.post1's cutlass_extensions headers, unchanged,
+Apache-2.0) + CUTLASS @57e3cfb4 (downloaded, sha256-checked). nvcc = the base image's 12.8, explicit sm_90a gencode, so no
+GPU is needed. The main stage copies kopt_wq_ext.so + manifest.json to /opt/kopt_wq and the kit copy wq/built/ (+ their
+md5 in ../MANIFEST) that kopt_shim.sh checks. A failed build -> '!! kopt-wq: build FAILED', no .so, SGL_WQ=1 REFUSED at
+coder start (stock path). Build log in the image: /opt/kopt_wq/BUILD.log; generated sources: /opt/kopt_wq/src/.
+Downloads at build time: torch==2.13.0 from download.pytorch.org/whl/cu129 (pinned by version, like the vllm-env pip
+lock) and the CUTLASS GitHub archive @57e3cfb4 (pinned by commit + sha256 in apply_wq.py). If either changes, the build
+fails safe (WQ off, -4% coder speed), the image still builds.
 Then:
   python apply_wq.py            # hook into sglang fp8_utils.py (idempotent, markers '# kopt wq')
   python apply_wq.py --check    # must print "check: PASS" (GPU probe: every table entry bitwise vs sgl_kernel)
@@ -40,4 +46,4 @@ No shared hook with MROPE-NB, fusedq or casc (casc = attention only), but the co
 
 ## Files
 apply_wq.py, kopt_wq.py, kopt_wq_gemm.cuh, kopt_wq_table.json, sgl_csrc/ (unchanged sgl-kernel headers for the build),
-prebuilt/{kopt_wq_ext.so, manifest.json}. Longer notes: README_served.md.
+build_wq.sh (image-build step). No binary in this kit.

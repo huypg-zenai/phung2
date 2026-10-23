@@ -1,4 +1,15 @@
 # syntax=docker/dockerfile:1.7
+# ---- [wq-src] kopt-wq FP8 GEMM tile table: the extension is built HERE, at image build, from the sources in
+# docker/opt/v5/wq (kopt_wq_gemm.cuh + sgl_csrc/ + kopt_wq_table.json -> apply_wq.py --build; no kopt-wq binary in the repo).
+# No GPU needed (explicit sm_90a gencode). Toolchain = the coder env's torch 2.13.0+cu129 + python3.11, this base image's
+# nvcc 12.8, CUTLASS @57e3cfb4 (sha256-checked). A failed build never fails the image: build_wq.sh prints
+# '!! kopt-wq: build FAILED' and leaves no .so, so SGL_WQ=1 is refused at coder start (stock FP8 GEMM path); the
+# RUN below also catches a missing/crashing script, so this stage always ends with /opt/kopt_wq present.
+FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel AS kopt_wq_build
+COPY docker/opt/v5/wq/ /opt/v5/wq/
+RUN mkdir -p /opt/kopt_wq && (bash /opt/v5/wq/build_wq.sh /opt/kopt_wq || { echo "!! kopt-wq: build step error -> no extension"; \
+      rm -f /opt/kopt_wq/kopt_wq_ext.so /opt/kopt_wq/manifest.json; : > /opt/kopt_wq/BUILD_FAILED; })
+
 FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel
 
 # Environment
@@ -65,11 +76,16 @@ COPY docker/opt/raff/ /opt/raff/
 COPY docker/opt/v4/ /opt/v4/
 RUN chmod +x /opt/ls/*.sh /opt/sgl/*.sh /opt/kern/*.sh /opt/jf/*.sh /opt/prefetch/*.sh /opt/v3/*.sh /opt/v3/seed/*.sh /opt/raff/*.sh /opt/v4/*.sh
 # entry 3 combo: kernel-optim coder handovers (wq, fusedq, mrope_nb, topkbf, normcfg, casc) + their installer
-# /opt/v5/kopt_shim.sh; kopt-wq's prebuilt extension (torch 2.13.0+cu129, sgl_kernel 0.4.6.post1, sm90) goes to
-# /opt/kopt_wq as its README says (kopt_wq.py checks its sha256 / torch / configs; kopt_shim.sh cmp's it with wq/prebuilt)
+# /opt/v5/kopt_shim.sh. [wq-src] kopt-wq's extension comes from the kopt_wq_build stage above (built from source in this
+# image build; kopt_wq.py checks its torch / configs / table). kopt_shim.sh expects the kit copy in /opt/v5/wq/built
+# + its md5 in /opt/v5/MANIFEST and cmp's it with /opt/kopt_wq: both are written here from that build.
 COPY docker/opt/v5/ /opt/v5/
-COPY docker/opt/v5/wq/prebuilt/ /opt/kopt_wq/
-RUN chmod +x /opt/v5/*.sh
+COPY --from=kopt_wq_build /opt/kopt_wq/ /opt/kopt_wq/
+RUN chmod +x /opt/v5/*.sh && cd /opt/v5 && if [ -f /opt/kopt_wq/kopt_wq_ext.so ] && [ -f /opt/kopt_wq/manifest.json ]; then \
+      mkdir -p wq/built && cp /opt/kopt_wq/kopt_wq_ext.so /opt/kopt_wq/manifest.json wq/built/ && \
+      md5sum wq/built/kopt_wq_ext.so wq/built/manifest.json >> MANIFEST && \
+      echo "kopt-wq: built-from-source extension installed (sha256 $(sha256sum /opt/kopt_wq/kopt_wq_ext.so | cut -c1-16))"; \
+    else echo "!! kopt-wq: no extension from the build stage (see /opt/kopt_wq/BUILD.log) -> SGL_WQ=1 will be REFUSED at coder start"; fi
 WORKDIR /workspace
 COPY docker/package.json docker/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
@@ -141,7 +157,8 @@ ENV SGL_TOPK20="1"
 # H200 only; any failure -> '[v5-kopt] <item> REFUSED' + that item reverted + the stock path, the coder still starts).
 # All switches 0 = pure pass-through (reads/writes nothing). V4_REAL_SHIM=/opt/v3/coder_switch.sh skips it.
 ENV V4_REAL_SHIM="/opt/v5/kopt_shim.sh"
-# 1 = FP8 GEMM tile table (kopt-wq, CLASS A, prebuilt ext, no compiler). REPLACES gsw (SGL_GSW="0" above); if someone
+# 1 = FP8 GEMM tile table (kopt-wq, CLASS A; its extension is compiled from source in stage kopt_wq_build).
+# REPLACES gsw (SGL_GSW="0" above); if someone
 # sets both to 1, wq wins when its check passes (SGL_GSW exported 0, gsw hook dormant), else gsw stays as /opt/v4 set it.
 ENV SGL_WQ="1"
 # 1 = fused SiLU-and-mul + per-token FP8 quant for down_proj (kernel-optim fusedq, CLASS A; SGL_FUSEDQ_NORM forced 0).
