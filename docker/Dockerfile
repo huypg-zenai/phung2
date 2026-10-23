@@ -173,7 +173,7 @@ ENV PGH_SEED_STRICT="0"
 # PGH_K40 80 is a PLACEHOLDER: the parent sets it with pgh16/set_k.sh after the box timing run.
 ENV PGH_K_MODE="fixed"
 # K for a 40.8-CPU pod (fixed: K everywhere; adaptive: the floor). Bad value -> !! + the build default
-ENV PGH_K40="88"
+ENV PGH_K40="86"
 # legacy switch: anything but 1 (e.g. 0) = off, overriding PGH_K_MODE; 1 = PGH_K_MODE decides
 ENV PGH_ADAPTIVE_K="1"
 # JSON object overriding any of the PROVISIONAL rule coefficients (adaptive_k.DEFAULT_COEFFS keys: target_s, kappa,
@@ -259,7 +259,9 @@ ENV PGH_SWS_THREADS="4"
 # [pgh17d] which sws lib with PGH_SWS=1: llvm = sws-llvm bb3e6767 (gated) | cid = sws-llvm-cid 3b393179 (same pixels, ~-20%
 # GPU-main-thread time on Milan; NOT gated on the pod CPU: keep llvm until kit/gate_sws.sh passes cid there)
 # [cl4] | cl4 = sws-llvm-cl4 688cab9f (kernel-optim R8, same pixels, render CPU -27%, Chrome RSS +8%; opt-in only)
-ENV PGH_SWS_LIB="cl4"
+# [llvm] default back to llvm (23/10, owner): cl4 under suspicion after the r57 b2 test (unproven: the test arms were
+# separate generations); pixel diff pending. cl4 stays opt-in: PGH_SWS_LIB=cl4.
+ENV PGH_SWS_LIB="llvm"
 # object-page.html program pin (pipeline-speed's patch_object_page.py --pin snippet): 1 = on | 0 = off (= pgh17's page)
 ENV PGH_RENDER_PIN="1"
 # render slots "SIDECARS:PAGES:WORKERS" (pipeline_service/pgh_rslots.py) = renderer.sidecar_count : renderer.pool_size :

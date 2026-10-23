@@ -76,7 +76,7 @@ LAST_DECISION: dict | None = None   # set by apply(); pgh_timeguard reuses its d
 V1_DIRS = ("cpu", "cpu,cpuacct", "cpuacct,cpu", ".")
 MODES = ("fixed", "adaptive", "rule", "off")
 DEFAULT_MODE = "fixed"
-BUILD_K40 = 88  # [build] K40 default; [pgh16] = the Dockerfile PGH_K40 (pgh16/set_k.sh sets both; 80 = placeholder)
+BUILD_K40 = 86  # [build] K40 default; [pgh16] = the Dockerfile PGH_K40 (pgh16/set_k.sh sets both; 80 = placeholder)
 K40_MIN, K40_MAX = 4, 128   # [pgh16] K40_MAX 80 -> 128 so PGH_K40 can exceed 80 (as pgh15)
 
 
