@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # /opt/v5/kopt_shim.sh <spawn.py's vllm_bin args...>   (entry 3 combo, 21/10)
-# Installs the kernel-optim coder handovers (projects/kernel-optim/handover/<kit>, files byte-identical, md5 in MANIFEST)
+# Installs the kernel-optim coder handovers (the kit dirs below, md5 of every file in MANIFEST)
 # IN PLACE into /opt/sglang-env at coder start, each FAIL CLOSED, each behind its own 0/1 switch (only "1" = on):
 #   item      switch        class  kit dir here            what it edits in <sglang>
 #   wq        SGL_WQ        A      wq/                     srt/layers/quantization/fp8_utils.py (append) + 2 copies;

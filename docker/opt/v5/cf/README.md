@@ -22,4 +22,4 @@ to memory_pool.py (e.g. SLIM) after cf in the same process tree.
 
 ## Gate
 Numbers (greedy identity vs base, step ms / tok/s at 64 running, coder CPU) come from
-projects/kernel-optim/coder (arm cf64 vs base64/base64b).
+our coder A/B runs (arm cf64 vs base64/base64b).

@@ -1,5 +1,5 @@
 """pgh_timeguard.py - reproducible ROUND-BUDGET guard checked at BATCH BOUNDARIES (pgh1v3, 19/10).
-Design: projects/quality-research/timeguard/REPORT.txt section 4d (the only reproducible guard of the study; the
+Design: the only guard of our time-guard study that keeps the draft pool reproducible (the
 within-batch predictive cap, the O9 render deadline and a start-up render benchmark were all REJECTED there because they
 make the draft pool depend on speed). Installed by make_pgh1_v3.py as pipeline_service/pgh_timeguard.py.
 

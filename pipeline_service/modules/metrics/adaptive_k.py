@@ -14,7 +14,7 @@ PGH_ADAPTIVE_K_FORCE=<n> still wins in every mode but off (tests / smoke runs).
 
 THE RULE (mode "rule", and the rule(Q) part of "adaptive"):
 GENERAL RULE (owner 19/10 07:13 VN "I want it general"), fitted by the time-guard study
-(projects/quality-research/timeguard/REPORT.txt section 4a, tg_rule.py; rms 4.8% over 343 sim cells). No lookup table.
+(one closed-form fit over 343 simulated round cells, rms error 4.8%). No lookup table.
 Installed by make_pgh1_v3.py as pipeline_service/modules/metrics/adaptive_k.py and called ONCE in
 GenerationPipeline.startup (before build_pipeline reads K; warm-up is not timed), unless the mode is off. The
 batch-boundary round guard (pgh_timeguard.py, PGH_TIMEGUARD) is the reproducible last net and uses per_batch_s() below.

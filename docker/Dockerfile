@@ -1,4 +1,17 @@
 # syntax=docker/dockerfile:1.7
+# [sws-src] SwiftShader built FROM SOURCE (docker/opt/sws/build_sws.sh; README.md there): the revision Chrome 147.0.7727.56
+# pins, LLVM JIT, two libs: llvm (default, PGH_SWS_LIB=llvm) and cl4 (opt-in). Ubuntu 22.04 (pinned by digest) = the
+# glibc/libstdc++ of the final image's base. A failed SwiftShader build (apt-get, clone or compile; e.g. no network) does
+# not fail the image: the stage then ships no lib, install_sws.sh prints "!! sws-llvm: NOT installed" and Chrome keeps its
+# own SwiftShader. ninja runs at most SWS_JOBS=16 jobs (this stage runs next to the other build stages).
+FROM ubuntu:22.04@sha256:0a9887931b0e38af2e3487ed39e29436b0535c4f3f52e57745baaf79d1898956 AS sws
+RUN mkdir -p /out && { { apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates git cmake ninja-build build-essential python3 binutils && rm -rf /var/lib/apt/lists/*; } > /out/apt.log 2>&1 \
+    || echo "!! sws stage: apt-get FAILED (rc $?): no SwiftShader build, see /opt/sws/apt.log" | tee -a /out/build.log /out/BUILD_INFO.txt; }
+COPY docker/opt/sws/build_sws.sh /w/build_sws.sh
+RUN for v in llvm cl4; do SWS_JOBS=16 bash /w/build_sws.sh /out $v >> /out/build.log 2>&1 \
+        || echo "!! sws build of $v FAILED (rc $?): see /opt/sws/build.log" | tee -a /out/build.log /out/BUILD_INFO.txt; done; \
+    cat /out/BUILD_INFO.txt
 # ---- [wq-src] kopt-wq FP8 GEMM tile table: the extension is built HERE, at image build, from the sources in
 # docker/opt/v5/wq (kopt_wq_gemm.cuh + sgl_csrc/ + kopt_wq_table.json -> apply_wq.py --build; no kopt-wq binary in the repo).
 # No GPU needed (explicit sm_90a gencode). Toolchain = the coder env's torch 2.13.0+cu129 + python3.11, this base image's
@@ -90,21 +103,18 @@ WORKDIR /workspace
 COPY docker/package.json docker/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
-# [sws] kernel-optim sws-llvm (projects/kernel-optim/render/HANDOFF_SWS.md): Chrome 147's own SwiftShader revision rebuilt
-# with the LLVM JIT (docker/opt/sws/build_sws.sh = the recipe; README.md there). Same pixels, ~1/3 less render CPU.
-# install_sws.sh swaps it ONLY into Chrome 147.0.7727.56 with the verified bundled lib (else "sws-llvm: NOT installed"),
-# keeps libvk_swiftshader.so.bundled, writes SwiftShader.ini ThreadCount=4. The shipped file is sha256-checked first.
-# Run time: PGH_SWS / PGH_SWS_THREADS below (sws_mode.sh, called by run.sh) switch it without a rebuild.
-# [pgh17d] this COPY also ships the optional sws-llvm-cid lib (/opt/sws/cid/libvk_swiftshader.so, sha256 3b393179...,
-# /opt/sws/cid/SWS_SHA256); it is not installed at build time, only PGH_SWS_LIB=cid copies it in at container start.
-# [cl4] and the optional sws-llvm-cl4 lib (/opt/sws/cl4/libvk_swiftshader.so, sha256 688cab9f..., /opt/sws/cl4/SWS_SHA256;
-# [cl4] committed in the repo like cid, so it reaches the build context with the checkout): kernel-optim R8 = this sws-llvm
-# [cl4] (rev 313545f8 + lmul MulAdd patch) with src/Device/Renderer.hpp MaxClusterCount 16->4, MaxBatchSize 128->1024;
-# [cl4] pixel-identical, render busy CPU -27% overall / -39% on heavy drafts, Chrome peak RSS +8%. Run-time only, like
-# [cl4] cid: PGH_SWS_LIB=cl4 copies it in at container start after the same sha256 + ldd checks (failure: '!!' + llvm).
+# [sws] kernel-optim sws-llvm: Chrome 147's own SwiftShader revision with the
+# LLVM JIT, BUILT FROM SOURCE in the "sws" stage at the top of this file (docker/opt/sws/build_sws.sh; README.md there).
+# Same pixels, ~1/3 less render CPU. No binary is shipped. install_sws.sh checks the built lib (sha256 recorded
+# by the build stage + ldd) and swaps it ONLY into Chrome 147.0.7727.56 with the verified bundled lib, keeps
+# libvk_swiftshader.so.bundled, writes SwiftShader.ini ThreadCount=4; no lib / any failure -> "!! sws-llvm: NOT installed"
+# and Chrome keeps its own lib (the image build never fails on it).
+# Run time: PGH_SWS / PGH_SWS_THREADS / PGH_SWS_LIB below (sws_mode.sh, called by run.sh) switch it without a rebuild.
+# [cl4] the opt-in sws-llvm-cl4 lib (/opt/sws/cl4/, PGH_SWS_LIB=cl4) is built in the same stage; it is copied in only
+# at container start, after the same sha256 + ldd checks (failure: '!!' + llvm).
 COPY docker/opt/sws /opt/sws
-RUN if sha256sum -c --status /opt/sws/SWS_SHA256; then bash /opt/sws/install_sws.sh /opt/sws/libvk_swiftshader.so; \
-    else echo "sws-llvm: NOT installed (shipped lib sha256 != /opt/sws/SWS_SHA256)"; fi
+COPY --from=sws /out/ /opt/sws/
+RUN bash /opt/sws/install_sws.sh /opt/sws/libvk_swiftshader.so
 
 # Add the pipeline service
 COPY pipeline_service     /workspace
@@ -120,7 +130,7 @@ ENV JUDGE_LB_MIGRATE="1"
 ENV SAVE_DRAFTS_DIR=""
 ENV SPEC_FINAL="0"
 # [jgrid] judge grid seen by our S2 judge: off (= today) | small (1041 px, speed only) | contest (= the contest judge grid).
-# Class C when not off; box acceptance checks A1-A10 in projects/win-r57/jgrid/README.md first. Default off.
+# Class C when not off; run the box acceptance checks A1-A10 first. Default off.
 ENV JUDGE_GRID="off"
 ENV SAVE_SEMIS_DIR=""
 ENV SAVE_SEMIS_MIN_ROUND="1"
@@ -265,7 +275,7 @@ ENV PGH_TIE_NEUTRAL="1"
 # [R82] budget = equal coder tokens per photo (modules/metrics/budget_k.py) is a PGH_K_MODE value (above: fixed = off).
 # [R82] 1 = finer time-guard cut steps [95,90,85,78,70,55,40,25]; 0 = pgh16/pgh17 steps.
 ENV PGH_TIMEGUARD_FINE="0"
-# runaway guard (projects/win-r57/guard): 1 = a coder draft cut at max_tokens without a JS module is not re-asked
+# runaway guard: 1 = a coder draft cut at max_tokens without a JS module is not re-asked
 # (dropped as today's 'retries used up' ValueError). Anything but 1 = today's re-asks (byte-identical).
 ENV RUNAWAY_GUARD="1"
 # [sws] render speed (opt_r4/sws/README.md). Read at container start; docker run -e NAME=value, no rebuild.
@@ -273,11 +283,10 @@ ENV RUNAWAY_GUARD="1"
 ENV PGH_SWS="1"
 # SwiftShader raster threads per Chrome (SwiftShader.ini next to the lib; with PGH_SWS=1 only); 0 = SwiftShader default 16
 ENV PGH_SWS_THREADS="4"
-# [pgh17d] which sws lib with PGH_SWS=1: llvm = sws-llvm bb3e6767 (gated) | cid = sws-llvm-cid 3b393179 (same pixels, ~-20%
-# GPU-main-thread time on Milan; NOT gated on the pod CPU: keep llvm until kit/gate_sws.sh passes cid there)
-# [cl4] | cl4 = sws-llvm-cl4 688cab9f (kernel-optim R8, same pixels, render CPU -27%, Chrome RSS +8%; opt-in only)
-# [llvm] default back to llvm (23/10, owner): cl4 under suspicion after the r57 b2 test (unproven: the test arms were
-# separate generations); pixel diff pending. cl4 stays opt-in: PGH_SWS_LIB=cl4.
+# which sws lib with PGH_SWS=1 (both built from source in the "sws" stage): llvm = sws-llvm (gated, default) |
+# cl4 = sws-llvm-cl4 (+ Renderer.hpp MaxClusterCount 4, MaxBatchSize 1024; less render CPU than llvm; opt-in only)
+# [llvm] default back to llvm (23/10, owner). cl4 pixel check 23/10: the built cl4 == the shipped cl4 on all 307 stable
+# drafts of 316 (the other 9 differ run to run with any lib). cl4 stays opt-in: PGH_SWS_LIB=cl4.
 ENV PGH_SWS_LIB="llvm"
 # object-page.html program pin (pipeline-speed's patch_object_page.py --pin snippet): 1 = on | 0 = off (= pgh17's page)
 ENV PGH_RENDER_PIN="1"

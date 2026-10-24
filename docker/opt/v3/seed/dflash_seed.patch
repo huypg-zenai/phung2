@@ -1,7 +1,7 @@
 dflash-seed: per-request seeded sampling on the SGLang DFLASH verify/accept path (mirrors EAGLE)
 =================================================================================================
 Target: SGLang @1cf2b8c54d81 (= the contest image's sglang 0.5.6.post3.dev9160+g1cf2b8c54; local copy
-projects/pipeline-speed/speed8_pull/x_final_pull/speed8/pgh1ls/arch/sglang-1cf2b8c54d81.../python).
+= that image's python/ tree).
 STATUS: PREPARED, NOT APPLIED to any submission. Apply in a container only via apply_seed_shim.sh.
 Apply by hand: repo root `git apply -p1 dflash_seed.patch`; installed tree `patch -p2 -d <site-packages> < dflash_seed.patch`.
 

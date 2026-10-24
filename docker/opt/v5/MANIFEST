@@ -1,7 +1,7 @@
 d51acdc03fc06aff91f48c9f3bcd9274  casc/README.md
 51aa5b8fe22f5c82f5d0a5232b104b31  casc/apply_casc.py
-407efa31e558a83ffbf1d1ea69fc695d  casc/kopt_casc.py
-70b204df97983668a75acc31f24b6bb2  cf/README.md
+f1b29ae7c13e08342e669848a16a2bcc  casc/kopt_casc.py
+f4a656d2541a14a9c93b3ff339b00a8d  cf/README.md
 95d2f2d80f558b518810aa9b09d5da5b  cf/apply_cf.py
 bc9507b24bad7ecb747b71773160788b  cf/apply_convp.py
 f4521b0edd104b782f76e8a4d62e1ffa  cf/apply_foldsplit.py
@@ -12,7 +12,7 @@ c1e6b61206398c72f716028a34e976d8  fusedq/apply_fusedq.py
 023b541fce39a14f49a3e5804c84f22b  fusedq/fusedq.py
 7e82f7ee2691b4524e2ab8687b00d954  fusedq/gemma_quant.cuh
 ef25724ae487539f2ee51813e1242871  fusedq/silu_quant.cuh
-171d70b49b65b840e1bc4d988d2e2ca6  kopt_shim.sh
+79153cd6ed33e7e9b2fcd88894df363f  kopt_shim.sh
 c8d7bfc5b278544e7cde3bbfa2b11fd7  mrope_nb/README.md
 a0a96bdebaf368c5eed169dfd93400d7  mrope_nb/apply_mrope.py
 7169ab69943775c3bee98e2a72a8b4af  topkbf_normcfg/README.md

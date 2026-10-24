@@ -2,7 +2,8 @@
 
 Installed into SGLang @1cf2b8c54 by apply_casc.py as srt/layers/attention/kopt_casc.py plus a 4-line hook at the end
 of flashattention_backend.py. Runtime switch SGL_CASC=1; unset/0 = install() is never called, the backend class is
-untouched (byte-identical behaviour). Design + rationale: projects/kernel-optim/casc/DESIGN.md.
+untouched (byte-identical behaviour). Why: the verify requests of a batch often share a long prompt prefix (radix
+cache); attending to it once per group instead of once per request cuts the KV reads.
 
 What it does (only for the TARGET model's verify graphs, page_size 1, bf16 KV, topk<=1, full-attention layers):
   per step, inside the CUDA graph (init_forward_metadata_in_graph, no host sync):
